@@ -1,0 +1,13 @@
+// Dumar Castilho - https://github.com/dumarcastilho
+function json(data,status=200,cache='no-store'){return new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':cache,'x-content-type-options':'nosniff'}});}
+async function aerial(url){
+const coords=(url.searchParams.get('bbox')||'').split(',').map(Number);
+if(coords.length!==4||coords.some(v=>!Number.isFinite(v))||coords[0]>=coords[2]||coords[1]>=coords[3]||Math.abs(coords[0])>180||Math.abs(coords[2])>180||Math.abs(coords[1])>90||Math.abs(coords[3])>90||coords[2]-coords[0]>5||coords[3]-coords[1]>5)return json({error:'Selecione uma área válida com até 5 graus por eixo.'},400);
+const page=Number(url.searchParams.get('page')||1);if(!Number.isInteger(page)||page<1||page>20)return json({error:'Página inválida.'},400);
+const from=url.searchParams.get('acquisition_from');if(from&&!Number.isFinite(Date.parse(from)))return json({error:'Data inválida.'},400);
+const upstream=new URL('https://api.openaerialmap.org/meta');for(const [k,v] of Object.entries({bbox:coords.join(','),page:String(page),limit:'100',order_by:'acquisition_start',sort:'desc'}))upstream.searchParams.set(k,v);if(from)upstream.searchParams.set('acquisition_from',from);
+try{const response=await fetch(upstream.href,{headers:{Accept:'application/json'},signal:AbortSignal.timeout(30000)});if(!response.ok)return json({error:'O OpenAerialMap está temporariamente indisponível. Tente novamente.'},502);const data=await response.json();if(!Array.isArray(data.results))return json({error:'Resposta inesperada do catálogo aéreo.'},502);
+const results=data.results.map(x=>({_id:x._id,title:x.title,uuid:x.uuid,provider:x.provider||x.user?.name,projection:x.projection,gsd:x.gsd,bbox:x.bbox,geojson:x.geojson,file_size:x.file_size,acquisition_start:x.acquisition_start,acquisition_end:x.acquisition_end,properties:{resolution_in_meters:x.properties?.resolution_in_meters,tms:x.properties?.tms,thumbnail:x.properties?.thumbnail,license:x.properties?.license}}));
+return json({meta:{found:data.meta?.found||0,page,license:data.meta?.license},results},200,'public, max-age=300');
+}catch{return json({error:'A consulta aérea demorou ou o catálogo não respondeu. Tente novamente.'},502);}}
+export default {async fetch(request){const url=new URL(request.url);if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',{status:405,headers:{Allow:'GET, HEAD'}});if(url.pathname==='/api/aerial')return aerial(url);const asset=ASSETS[url.pathname];if(!asset)return new Response('Not found',{status:404});return new Response(request.method==='HEAD'?null:asset.body,{headers:{'content-type':asset.type,'cache-control':'no-cache','x-content-type-options':'nosniff'}});}};

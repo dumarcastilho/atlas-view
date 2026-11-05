@@ -1,0 +1,17 @@
+{
+  "name": "atlas-view",
+  "private": true,
+  "description": "Explorador de imagens de satélite e aéreas de múltiplas fontes.",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "author": "Dumar Castilho - https://github.com/dumarcastilho",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/dumarcastilho/atlas-view.git" },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/dev.mjs",
+    "start": "node scripts/serve.mjs",
+    "check": "node --check web/app.js && node --check worker/index.js",
+    "test": "node scripts/build.mjs && node --test"
+  }
+}
